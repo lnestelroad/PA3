@@ -11,7 +11,7 @@
 #ifndef MULTI_H
 #define MULTI_H
 
-#define QUEUE_SIZE 10
+#define QUEUE_SIZE 20
 #define SHM_KEY 5678
 
 typedef struct queue {
@@ -20,6 +20,7 @@ typedef struct queue {
     int tail;
     int capacity;
     char domainBuffer[QUEUE_SIZE][256];
+    int semephore;
 }queue;
 
 typedef struct data {

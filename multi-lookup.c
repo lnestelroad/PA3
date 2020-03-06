@@ -129,10 +129,14 @@ void* Requestor(void* shm_dataPointer){
             while(NULL != fgets(buffer, sizeof(buffer), nameFileP)){
                 buffer[strcspn(buffer, "\n")] = 0;
                 enqueue(buffer, shm_data);
+                printf("REQUESTOR: Added %s\n", buffer);
             }
             closeFile(nameFileP);
         }
     }
+    pthread_mutex_lock(&shm_lock);
+        shm_data->semephore -= 1;
+    pthread_mutex_unlock(&shm_lock);
 
     shmdt(shm_data);
     printf("Out of files. Thread exiting ...\n");
@@ -145,6 +149,7 @@ void* Resolver(void* shm_dataPointer){
     char buffer[128]; // these will be used as a temp space for the name files path and line contents
     char filePath[256];
     FILE* results;
+    bool flag = true;
 
     data * shm_details = (data*) shm_dataPointer;
     queue* shm_data;
@@ -161,13 +166,20 @@ void* Resolver(void* shm_dataPointer){
     
     results = openFile("../results.txt", "a");
 
-    printf("Hello from resolver thread\n");    
-    for (int i = 0; i < 103; i++){
+    printf("Hello from resolver thread\n");   
+
+    
+    while(flag){
+        pthread_mutex_lock(&shm_lock);
+            if (shm_data->semephore <= 0 && shm_data->size == 1)
+                flag = false;
+        pthread_mutex_unlock(&shm_lock);
+
         strcpy(buffer, dequeue(shm_data));
         dnslookup(buffer, IP, sizeof(IP));
         if (strcmp(IP, "UNHANDELED") == 0)
             strcpy(IP, "");
-        // printf("%s:%s\n", buffer, IP);
+        printf("RESOLVER: Removed %s\n", buffer);
         fprintf(results, "%s,%s\n", buffer, IP);
     }
 
@@ -180,8 +192,11 @@ int main(int argc, char *argv[]){
     printf("Hello, World\n"); 
 
     int shmid, i, j;
+    int numRequestors = atoi(argv[1]);
+    int numResolvers = atoi(argv[2]);
     queue* shm_data;
-    pthread_t *requestor, *resolver;
+    pthread_t* requestors = malloc(sizeof(pthread_t)*numRequestors);
+    pthread_t* resolvers = malloc(sizeof(pthread_t)*numResolvers);
     key_t key = 5678; 
 
     FILE* results = openFile("../results.txt", "w");
@@ -207,29 +222,57 @@ int main(int argc, char *argv[]){
     shm_data->head = -1;
     shm_data->tail = -1;
     shm_data->size = 0;
+    shm_data->semephore = numRequestors;
     shm_data->capacity = QUEUE_SIZE;
 
-    requestor = (pthread_t *) malloc(sizeof(pthread_t));
-    if (pthread_create(requestor, NULL, Requestor, NULL)) {
-        perror("error creating the first thread");
-        exit(1);
+    for (i = 0; i < numRequestors; i++){
+        // requestors[i] = (pthread_t) malloc(sizeof(pthread_t));
+        if (pthread_create(&requestors[i], NULL, Requestor, NULL)) {
+            perror("error creating requestor thread");
+            exit(1);
+        } 
     }
 
-    resolver = (pthread_t *) malloc(sizeof(pthread_t));
-    if (pthread_create(resolver, NULL, Resolver, NULL)) {
-        perror("error creating the second thread");
-        exit(1);
+    for (i = 0; i < numResolvers; i++){
+        // resolvers[i] = (pthread_t) malloc(sizeof(pthread_t));
+        if (pthread_create(&resolvers[i], NULL, Resolver, NULL)) {
+            perror("error creating requestor thread");
+            exit(1);
+        } 
     }
 
-    pthread_join(*requestor, 0);
-    pthread_join(*resolver, 0);
+    // data details[numRequestors + numResolvers];
+    // details[0].key = 5678;
+
+    // pthread_t* requestor, *resolver;
+    // requestor = (pthread_t *) malloc(sizeof(pthread_t));
+    // if (pthread_create(requestor, NULL, Requestor, NULL)) {
+    //     perror("error creating the first thread");
+    //     exit(1);
+    // }
+
+    // resolver = (pthread_t *) malloc(sizeof(pthread_t));
+    // if (pthread_create(resolver, NULL, Resolver, (void*)&details[0])) {
+    //     perror("error creating the second thread");
+    //     exit(1);
+    // }
+
+    for (i = 0; i < numRequestors; i++){
+        pthread_join(requestors[i], 0);
+    }
+
+    for (i = 0; i < numResolvers; i++){    
+        pthread_join(resolvers[i], 0);
+    }
+
+    free(requestors);
+    free(resolvers);
+
     pthread_mutex_destroy(&shm_lock);
     pthread_mutex_destroy(&serviced_lock);
     pthread_mutex_destroy(&results_lock);
     pthread_cond_destroy(&buffer_full);	
 
-    free(requestor);
-    free(resolver);
 
     shmctl(shmid,IPC_RMID,NULL); 
     exit(0);
