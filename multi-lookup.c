@@ -13,7 +13,7 @@ FILE* openFile(char* filePath, char* fileOption){
 
 void closeFile(FILE* fp){
     if (fclose(fp))
-        printf("Failed to close file: %hd\n", fp->_file);
+        printf("Failed to close file\n");
 }
 
 bool inFile(char* filePath, char* string){
@@ -116,8 +116,8 @@ void* Requestor(void* shm_dataPointer){
     printf("Hello from requestor thread\n");
 
     for (i = 1; i < 6; i++){
-        sprintf(nextFile, "/Users/liam/Documents/CUBoulderDocuments/2020_Spring/Operating_Systems/problem_sets/PA3/input/names%d.txt", i);
-        if(!inFile("/Users/liam/Documents/CUBoulderDocuments/2020_Spring/Operating_Systems/problem_sets/PA3/serviced.txt", nextFile)){
+        sprintf(nextFile, "/home/user/Documents/PA3/input/names%d.txt", i);
+        if(!inFile("/home/user/Documents/PA3/serviced.txt", nextFile)){
             FILE* nameFileP = openFile(nextFile, "r");
             while(NULL != fgets(buffer, sizeof(buffer), nameFileP)){
                 buffer[strcspn(buffer, "\n")] = 0;
@@ -128,7 +128,7 @@ void* Requestor(void* shm_dataPointer){
         }
     }
 
-    shmdt(shm_data);
+    /* shmdt(shm_data); */
     printf("Out of files. Thread exiting ...\n");
     return NULL; 
 }
@@ -152,7 +152,7 @@ void* Resolver(void* shm_dataPointer){
         exit(1);
     } 
 
-    results = openFile("/Users/liam/Documents/CUBoulderDocuments/2020_Spring/Operating_Systems/problem_sets/PA3/results.txt", "w");
+    results = openFile("/home/user/Documents/PA3/results.txt", "w");
 
     printf("Hello from resolver thread\n");    
     for (int i = 0; i < 103; i++){
@@ -195,9 +195,6 @@ int main(int argc, char *argv[]){
     shm_data->size = 0;
     shm_data->capacity = QUEUE_SIZE;
 
-    char IP[256];
-    dnslookup("facebook.com", IP, sizeof(IP));
-
     // data* details_requestor;
     // details_requestor->key = key;
 
@@ -220,6 +217,9 @@ int main(int argc, char *argv[]){
     pthread_join(*resolver, 0);
     pthread_mutex_destroy(&shm_lock);
     pthread_cond_destroy(&buffer_full);	
+
+    free(requestor);
+    free(resolver);
 
     shmctl(shmid,IPC_RMID,NULL); 
     exit(0);

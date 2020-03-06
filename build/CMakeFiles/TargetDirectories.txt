@@ -1,3 +1,0 @@
-/Users/liam/Documents/CUBoulderDocuments/2020_Spring/Operating_Systems/problem_sets/PA3/build/CMakeFiles/rebuild_cache.dir
-/Users/liam/Documents/CUBoulderDocuments/2020_Spring/Operating_Systems/problem_sets/PA3/build/CMakeFiles/edit_cache.dir
-/Users/liam/Documents/CUBoulderDocuments/2020_Spring/Operating_Systems/problem_sets/PA3/build/CMakeFiles/multi-lookup.dir
