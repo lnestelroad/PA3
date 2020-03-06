@@ -118,17 +118,23 @@ void* Requestor(void* shm_dataPointer){
     for (i = 1; i < 6; i++){
         sprintf(nextFile, "../input/names%d.txt", i);
         if(!inFile("../serviced.txt", nextFile)){
+
+            FILE* serviced = openFile("../serviced.txt", "a");
+            pthread_mutex_lock(&serviced_lock);
+                fprintf(serviced, "%s\n", nextFile);
+            pthread_mutex_unlock(&serviced_lock);
+            closeFile(serviced);
+
             FILE* nameFileP = openFile(nextFile, "r");
             while(NULL != fgets(buffer, sizeof(buffer), nameFileP)){
                 buffer[strcspn(buffer, "\n")] = 0;
                 enqueue(buffer, shm_data);
             }
             closeFile(nameFileP);
-            //TODO: Added serviced file to pthread data struct
         }
     }
 
-    /* shmdt(shm_data); */
+    shmdt(shm_data);
     printf("Out of files. Thread exiting ...\n");
     return NULL; 
 }
@@ -153,7 +159,7 @@ void* Resolver(void* shm_dataPointer){
         exit(1);
     } 
     
-    results = openFile("../results.txt", "w");
+    results = openFile("../results.txt", "a");
 
     printf("Hello from resolver thread\n");    
     for (int i = 0; i < 103; i++){
@@ -178,7 +184,14 @@ int main(int argc, char *argv[]){
     pthread_t *requestor, *resolver;
     key_t key = 5678; 
 
+    FILE* results = openFile("../results.txt", "w");
+    FILE* serviced = openFile("../serviced.txt", "w");
+    closeFile(results);
+    closeFile(serviced);
+
     pthread_mutex_init(&shm_lock, NULL);
+    pthread_mutex_init(&serviced_lock, NULL);
+    pthread_mutex_init(&results_lock, NULL);
     pthread_cond_init(&buffer_full, NULL);
 
     if ((shmid = shmget(key, sizeof(queue), IPC_CREAT|0666)) < 0){
@@ -211,6 +224,8 @@ int main(int argc, char *argv[]){
     pthread_join(*requestor, 0);
     pthread_join(*resolver, 0);
     pthread_mutex_destroy(&shm_lock);
+    pthread_mutex_destroy(&serviced_lock);
+    pthread_mutex_destroy(&results_lock);
     pthread_cond_destroy(&buffer_full);	
 
     free(requestor);

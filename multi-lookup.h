@@ -42,7 +42,7 @@ void* Requestor(void* details);
 void* Resolver(void* details);
 
 // Shared Memory Functions
-pthread_mutex_t shm_lock;
+pthread_mutex_t shm_lock, serviced_lock, results_lock;
 pthread_cond_t buffer_full;
 
 
