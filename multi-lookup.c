@@ -2,7 +2,7 @@
 
 /////////////////////////////////////////// Helper Functions /////////////////////////////////////////////////////
 FILE* openFile(char* filePath, char* fileOption){
-    FILE *fp = fopen(filePath, "r");
+    FILE *fp = fopen(filePath, fileOption);
     if (fp == NULL) {
         perror("Failed: ");
         return NULL;
@@ -122,7 +122,6 @@ void* Requestor(void* shm_dataPointer){
             while(NULL != fgets(buffer, sizeof(buffer), nameFileP)){
                 buffer[strcspn(buffer, "\n")] = 0;
                 enqueue(buffer, shm_data);
-                printf("REQUESTOR\n");
             }
             closeFile(nameFileP);
             //TODO: Added serviced file to pthread data struct
@@ -136,8 +135,9 @@ void* Requestor(void* shm_dataPointer){
 
 void* Resolver(void* shm_dataPointer){
     int shmid, i;
-    char buffer[128]; // these will be used as a temp space for the name files path and line contents
     char IP[256];
+    char buffer[128]; // these will be used as a temp space for the name files path and line contents
+    FILE* results;
 
     data * shm_details = (data*) shm_dataPointer;
     queue* shm_data;
@@ -152,13 +152,19 @@ void* Resolver(void* shm_dataPointer){
         exit(1);
     } 
 
+    results = openFile("/Users/liam/Documents/CUBoulderDocuments/2020_Spring/Operating_Systems/problem_sets/PA3/results.txt", "w");
+
     printf("Hello from resolver thread\n");    
     for (int i = 0; i < 103; i++){
         strcpy(buffer, dequeue(shm_data));
         dnslookup(buffer, IP, sizeof(IP));
-        printf("RESOLVER: %s:%s\n", buffer, IP);
+        if (strcmp(IP, "UNHANDELED") == 0)
+            strcpy(IP, "");
+        // printf("%s:%s\n", buffer, IP);
+        fprintf(results, "%s,%s\n", buffer, IP);
     }
 
+    closeFile(results);
     shmdt(shm_data);
     return NULL;
 }
