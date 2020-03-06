@@ -116,8 +116,8 @@ void* Requestor(void* shm_dataPointer){
     printf("Hello from requestor thread\n");
 
     for (i = 1; i < 6; i++){
-        sprintf(nextFile, "/home/user/Documents/PA3/input/names%d.txt", i);
-        if(!inFile("/home/user/Documents/PA3/serviced.txt", nextFile)){
+        sprintf(nextFile, "../input/names%d.txt", i);
+        if(!inFile("../serviced.txt", nextFile)){
             FILE* nameFileP = openFile(nextFile, "r");
             while(NULL != fgets(buffer, sizeof(buffer), nameFileP)){
                 buffer[strcspn(buffer, "\n")] = 0;
@@ -137,6 +137,7 @@ void* Resolver(void* shm_dataPointer){
     int shmid, i;
     char IP[256];
     char buffer[128]; // these will be used as a temp space for the name files path and line contents
+    char filePath[256];
     FILE* results;
 
     data * shm_details = (data*) shm_dataPointer;
@@ -151,8 +152,8 @@ void* Resolver(void* shm_dataPointer){
         perror("Resolver shmat failed: ");
         exit(1);
     } 
-
-    results = openFile("/home/user/Documents/PA3/results.txt", "w");
+    
+    results = openFile("../results.txt", "w");
 
     printf("Hello from resolver thread\n");    
     for (int i = 0; i < 103; i++){
@@ -194,12 +195,6 @@ int main(int argc, char *argv[]){
     shm_data->tail = -1;
     shm_data->size = 0;
     shm_data->capacity = QUEUE_SIZE;
-
-    // data* details_requestor;
-    // details_requestor->key = key;
-
-    // data* details_resolver;
-    // details_resolver->key = key;
 
     requestor = (pthread_t *) malloc(sizeof(pthread_t));
     if (pthread_create(requestor, NULL, Requestor, NULL)) {
