@@ -20,16 +20,18 @@ bool inFile(char* filePath, char* string){
     bool infile = false;
     char line_buffer[128];
 
-    FILE* file_pointer = openFile(filePath, "r");
+    pthread_mutex_lock(&serviced_lock);
+        FILE* file_pointer = openFile(filePath, "r");
 
-    while(NULL != fgets(line_buffer, sizeof(line_buffer), file_pointer)){
-       line_buffer[strcspn(line_buffer, "\n")] = 0; 
-       if (!strcmp(line_buffer, string)) {
-            infile = true;
-            break;
+        while(NULL != fgets(line_buffer, sizeof(line_buffer), file_pointer)){
+        line_buffer[strcspn(line_buffer, "\n")] = 0; 
+        if (!strcmp(line_buffer, string)) {
+                infile = true;
+                break;
+            }
         }
-    }
-    closeFile(file_pointer);
+        closeFile(file_pointer);
+    pthread_mutex_unlock(&serviced_lock);
     return infile;
 }
 
@@ -48,7 +50,7 @@ void enqueue(char* domainName, queue* shm_data){
             shm_data->head = 0;
             shm_data->tail = 0;
             shm_data->size += 1;
-            // pthread_cond_signal(&buffer_full);
+            pthread_cond_broadcast(&buffer_full);
         // pthread_mutex_unlock(&shm_lock);
     }
 
@@ -57,10 +59,11 @@ void enqueue(char* domainName, queue* shm_data){
             shm_data->tail = (shm_data->tail + 1)%shm_data->capacity;
             strcpy(shm_data->domainBuffer[shm_data->tail], domainName);
             shm_data->size += 1;
+            pthread_cond_broadcast(&buffer_full);
         // pthread_mutex_unlock(&shm_lock);
     }
     
-    pthread_cond_signal(&buffer_full);
+    pthread_cond_broadcast(&buffer_full);
     pthread_mutex_unlock(&shm_lock);
 }
 
@@ -70,26 +73,26 @@ char* dequeue(queue* shm_data){
     pthread_mutex_lock(&shm_lock); 
     // printf("%d", shm_data->size);
 
-    while(shm_data->size == 0 ){
+    if(shm_data->size == 0 ){
         pthread_cond_wait(&buffer_full, &shm_lock);
     }
     
     if(shm_data->tail == shm_data->head){
         pop = shm_data->domainBuffer[shm_data->head];
-            shm_data->head = -1;
-            shm_data->tail = -1;
-            shm_data->size = 0;
+        shm_data->head = -1;
+        shm_data->tail = -1;
+        shm_data->size = 0;
         // pthread_mutex_unlock(&shm_lock); 
     }
 
     else{
         pop = shm_data->domainBuffer[shm_data->head];
         // pthread_mutex_lock(&shm_lock); 
-            shm_data->head = (shm_data->head + 1) % shm_data->capacity; 
-            shm_data->size -= 1;
+        shm_data->head = (shm_data->head + 1) % shm_data->capacity; 
+        shm_data->size -= 1;
     }
 
-    pthread_cond_signal(&buffer_full);
+    pthread_cond_broadcast(&buffer_full);
     pthread_mutex_unlock(&shm_lock); 
     return pop;
 }
@@ -119,11 +122,11 @@ void* Requestor(void* shm_dataPointer){
         sprintf(nextFile, "../input/names%d.txt", i);
         if(!inFile("../serviced.txt", nextFile)){
 
-            FILE* serviced = openFile("../serviced.txt", "a");
             pthread_mutex_lock(&serviced_lock);
+                FILE* serviced = openFile("../serviced.txt", "a");
                 fprintf(serviced, "%s\n", nextFile);
+                closeFile(serviced);
             pthread_mutex_unlock(&serviced_lock);
-            closeFile(serviced);
 
             FILE* nameFileP = openFile(nextFile, "r");
             while(NULL != fgets(buffer, sizeof(buffer), nameFileP)){
@@ -138,6 +141,7 @@ void* Requestor(void* shm_dataPointer){
         shm_data->semephore -= 1;
     pthread_mutex_unlock(&shm_lock);
 
+    pthread_cond_broadcast(&buffer_full);
     shmdt(shm_data);
     printf("Out of files. Thread exiting ...\n");
     return NULL; 
@@ -148,7 +152,6 @@ void* Resolver(void* shm_dataPointer){
     char IP[256];
     char buffer[128]; // these will be used as a temp space for the name files path and line contents
     char filePath[256];
-    FILE* results;
     bool flag = true;
 
     data * shm_details = (data*) shm_dataPointer;
@@ -164,14 +167,13 @@ void* Resolver(void* shm_dataPointer){
         exit(1);
     } 
     
-    results = openFile("../results.txt", "a");
 
     printf("Hello from resolver thread\n");   
 
     
     while(flag){
         pthread_mutex_lock(&shm_lock);
-            if (shm_data->semephore <= 0 && shm_data->size == 1)
+            if (shm_data->semephore <= 0 && shm_data->size <= 1)
                 flag = false;
         pthread_mutex_unlock(&shm_lock);
 
@@ -180,11 +182,20 @@ void* Resolver(void* shm_dataPointer){
         if (strcmp(IP, "UNHANDELED") == 0)
             strcpy(IP, "");
         printf("RESOLVER: Removed %s\n", buffer);
-        fprintf(results, "%s,%s\n", buffer, IP);
+        pthread_mutex_lock(&results_lock);
+            FILE* results = openFile("../results.txt", "a");
+                fprintf(results, "%s,%s\n", buffer, IP);
+            closeFile(results);
+        pthread_mutex_unlock(&results_lock);
+
+        pthread_mutex_lock(&shm_lock);
+            if (shm_data->semephore <= 0 && shm_data->size <= 1)
+                flag = false;
+        pthread_mutex_unlock(&shm_lock);
     }
 
-    closeFile(results);
     shmdt(shm_data);
+    printf("Resolver thread exiting\n");
     return NULL;
 }
 ///////////////////////////////////////////// Main Function //////////////////////////////////////////////////
