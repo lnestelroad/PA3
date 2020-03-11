@@ -100,6 +100,7 @@ char* dequeue(queue* shm_data){
 ///////////////////////////////////////////// Thread Functions /////////////////////////////////////////////////////
 void* Requestor(void* shm_dataPointer){
     int shmid, i;
+    int counter = 0;
     char buffer[128];
     char nextFile[256]; // these will be used as a temp space for the name files path and line contents
 
@@ -114,7 +115,7 @@ void* Requestor(void* shm_dataPointer){
     if ((shm_data = (queue *)shmat(shmid, NULL, 0)) == (queue*)-1){
         perror("Thread shmat failed: ");
         exit(1);
-    } 
+    }
 
     printf("Hello from requestor thread\n");
 
@@ -132,11 +133,19 @@ void* Requestor(void* shm_dataPointer){
             while(NULL != fgets(buffer, sizeof(buffer), nameFileP)){
                 buffer[strcspn(buffer, "\n")] = 0;
                 enqueue(buffer, shm_data);
-                printf("REQUESTOR: Added %s\n", buffer);
+                // printf("REQUESTOR: Added %s\n", buffer);
             }
             closeFile(nameFileP);
+            counter++;
         }
     }
+
+    pthread_mutex_lock(&serviced_lock);
+        FILE* serviced = openFile("../serviced.txt", "a");
+        fprintf(serviced, "Thread YEET serviced %d files\n", counter);
+        closeFile(serviced);
+    pthread_mutex_unlock(&serviced_lock);
+
     pthread_mutex_lock(&shm_lock);
         shm_data->semephore -= 1;
     pthread_mutex_unlock(&shm_lock);
@@ -144,6 +153,7 @@ void* Requestor(void* shm_dataPointer){
     pthread_cond_broadcast(&buffer_full);
     shmdt(shm_data);
     printf("Out of files. Thread exiting ...\n");
+
     return NULL; 
 }
 
@@ -181,7 +191,7 @@ void* Resolver(void* shm_dataPointer){
         dnslookup(buffer, IP, sizeof(IP));
         if (strcmp(IP, "UNHANDELED") == 0)
             strcpy(IP, "");
-        printf("RESOLVER: Removed %s\n", buffer);
+        // printf("RESOLVER: Removed %s\n", buffer);
         pthread_mutex_lock(&results_lock);
             FILE* results = openFile("../results.txt", "a");
                 fprintf(results, "%s,%s\n", buffer, IP);
