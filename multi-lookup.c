@@ -103,9 +103,12 @@ void* Requestor(void* shm_dataPointer){
     int counter = 0;
     char buffer[128];
     char nextFile[256]; // these will be used as a temp space for the name files path and line contents
+    FILE* serviced;
 
     data * shm_details = (data*) shm_dataPointer;
     queue* shm_data;
+
+    // printf("Hello from requestor thread\n");
 
     if ((shmid = shmget(5678, sizeof(queue), 0666)) < 0){
         perror("Thread shmget failed: ");
@@ -117,14 +120,12 @@ void* Requestor(void* shm_dataPointer){
         exit(1);
     }
 
-    printf("Hello from requestor thread\n");
-
     for (i = 1; i < 6; i++){
         sprintf(nextFile, "../input/names%d.txt", i);
         if(!inFile("../serviced.txt", nextFile)){
 
             pthread_mutex_lock(&serviced_lock);
-                FILE* serviced = openFile("../serviced.txt", "a");
+                serviced = openFile("../serviced.txt", "a");
                 fprintf(serviced, "%s\n", nextFile);
                 closeFile(serviced);
             pthread_mutex_unlock(&serviced_lock);
@@ -140,11 +141,13 @@ void* Requestor(void* shm_dataPointer){
         }
     }
 
-    pthread_mutex_lock(&serviced_lock);
-        FILE* serviced = openFile("../serviced.txt", "a");
-        fprintf(serviced, "Thread YEET serviced %d files\n", counter);
+    pthread_t self = pthread_self();
+    pthread_mutex_lock(&perform_lock);
+        serviced = openFile("../performance.txt", "a");
+        fprintf(serviced, "Thread %lu serviced %d files\n", self , counter);
         closeFile(serviced);
-    pthread_mutex_unlock(&serviced_lock);
+    pthread_mutex_unlock(&perform_lock);
+
 
     pthread_mutex_lock(&shm_lock);
         shm_data->semephore -= 1;
@@ -164,6 +167,8 @@ void* Resolver(void* shm_dataPointer){
     char filePath[256];
     bool flag = true;
 
+    // printf("Hello from resolver thread\n");   
+
     data * shm_details = (data*) shm_dataPointer;
     queue* shm_data;
 
@@ -176,11 +181,7 @@ void* Resolver(void* shm_dataPointer){
         perror("Resolver shmat failed: ");
         exit(1);
     } 
-    
 
-    printf("Hello from resolver thread\n");   
-
-    
     while(flag){
         pthread_mutex_lock(&shm_lock);
             if (shm_data->semephore <= 0 && shm_data->size <= 1)
@@ -192,6 +193,7 @@ void* Resolver(void* shm_dataPointer){
         if (strcmp(IP, "UNHANDELED") == 0)
             strcpy(IP, "");
         // printf("RESOLVER: Removed %s\n", buffer);
+
         pthread_mutex_lock(&results_lock);
             FILE* results = openFile("../results.txt", "a");
                 fprintf(results, "%s,%s\n", buffer, IP);
@@ -205,16 +207,21 @@ void* Resolver(void* shm_dataPointer){
     }
 
     shmdt(shm_data);
-    printf("Resolver thread exiting\n");
+    // printf("Resolver thread exiting\n");
     return NULL;
 }
 ///////////////////////////////////////////// Main Function //////////////////////////////////////////////////
 int main(int argc, char *argv[]){
     printf("Hello, World\n"); 
 
-    int shmid, i, j;
+    int totaltime, shmid, i, j;
     int numRequestors = atoi(argv[1]);
     int numResolvers = atoi(argv[2]);
+    struct timeval start_tv, finish_tv;
+    struct timezone tz;
+
+    int td = gettimeofday(&start_tv, &tz);
+
     queue* shm_data;
     pthread_t* requestors = malloc(sizeof(pthread_t)*numRequestors);
     pthread_t* resolvers = malloc(sizeof(pthread_t)*numResolvers);
@@ -222,8 +229,17 @@ int main(int argc, char *argv[]){
 
     FILE* results = openFile("../results.txt", "w");
     FILE* serviced = openFile("../serviced.txt", "w");
+    FILE* perform = openFile("../performance.txt", "w");
     closeFile(results);
     closeFile(serviced);
+    closeFile(perform);
+
+    pthread_mutex_lock(&perform_lock);
+        serviced = openFile("../performance.txt", "a");
+        fprintf(serviced, "Number for requester thread = %d\n", numRequestors);
+        fprintf(serviced, "Number for resolver thread = %d\n", numResolvers);
+        closeFile(serviced);
+    pthread_mutex_unlock(&perform_lock);
 
     pthread_mutex_init(&shm_lock, NULL);
     pthread_mutex_init(&serviced_lock, NULL);
@@ -247,7 +263,6 @@ int main(int argc, char *argv[]){
     shm_data->capacity = QUEUE_SIZE;
 
     for (i = 0; i < numRequestors; i++){
-        // requestors[i] = (pthread_t) malloc(sizeof(pthread_t));
         if (pthread_create(&requestors[i], NULL, Requestor, NULL)) {
             perror("error creating requestor thread");
             exit(1);
@@ -255,28 +270,11 @@ int main(int argc, char *argv[]){
     }
 
     for (i = 0; i < numResolvers; i++){
-        // resolvers[i] = (pthread_t) malloc(sizeof(pthread_t));
         if (pthread_create(&resolvers[i], NULL, Resolver, NULL)) {
             perror("error creating requestor thread");
             exit(1);
         } 
     }
-
-    // data details[numRequestors + numResolvers];
-    // details[0].key = 5678;
-
-    // pthread_t* requestor, *resolver;
-    // requestor = (pthread_t *) malloc(sizeof(pthread_t));
-    // if (pthread_create(requestor, NULL, Requestor, NULL)) {
-    //     perror("error creating the first thread");
-    //     exit(1);
-    // }
-
-    // resolver = (pthread_t *) malloc(sizeof(pthread_t));
-    // if (pthread_create(resolver, NULL, Resolver, (void*)&details[0])) {
-    //     perror("error creating the second thread");
-    //     exit(1);
-    // }
 
     for (i = 0; i < numRequestors; i++){
         pthread_join(requestors[i], 0);
@@ -289,13 +287,30 @@ int main(int argc, char *argv[]){
     free(requestors);
     free(resolvers);
 
+    pthread_mutex_lock(&serviced_lock);
+        serviced = openFile("../serviced.txt", "a");
+        fprintf(serviced, "\nTime of day: \n");
+        closeFile(serviced);
+    pthread_mutex_unlock(&serviced_lock);
+
     pthread_mutex_destroy(&shm_lock);
     pthread_mutex_destroy(&serviced_lock);
     pthread_mutex_destroy(&results_lock);
     pthread_cond_destroy(&buffer_full);	
 
-
     shmctl(shmid,IPC_RMID,NULL); 
+
+    td = gettimeofday(&finish_tv, &tz); 
+    totaltime = finish_tv.tv_sec - start_tv.tv_sec;
+    // printf("Start time: %ld\nFinish time: %ld\n", start_tv.tv_sec, finish_tv.tv_sec);
+    printf("The program took %d seconds to complete.\n", totaltime);
+
+    pthread_mutex_lock(&perform_lock);
+        serviced = openFile("../performance.txt", "a");
+        fprintf(serviced, "Total time: %d seconds.\n", totaltime);
+        closeFile(serviced);
+    pthread_mutex_unlock(&perform_lock);
+
     exit(0);
 }
 

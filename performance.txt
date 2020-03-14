@@ -1,0 +1,7 @@
+Number for requester thread = 4
+Number for resolver thread = 3
+Thread 123145474068480 serviced 1 files
+Thread 123145472995328 serviced 2 files
+Thread 123145473531904 serviced 1 files
+Thread 123145474605056 serviced 1 files
+Total time: 2.

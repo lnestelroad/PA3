@@ -5,7 +5,7 @@
 #include<sys/ipc.h> 
 #include<sys/shm.h> 
 #include<unistd.h>
-// #include<string.h>
+#include<sys/time.h>
 #include"util.c"
 
 #ifndef MULTI_H
@@ -43,7 +43,7 @@ void* Requestor(void* details);
 void* Resolver(void* details);
 
 // Shared Memory Functions
-pthread_mutex_t shm_lock, serviced_lock, results_lock;
+pthread_mutex_t shm_lock, serviced_lock, results_lock, perform_lock;
 pthread_cond_t buffer_full;
 
 
