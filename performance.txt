@@ -1,7 +1,45 @@
-Number for requester thread = 4
+Number for requester thread = 1
+Number for resolver thread = 1
+Thread 139658677606144 serviced 5 files
+Total time: 50 seconds.
+
+Number for requester thread = 1
 Number for resolver thread = 3
-Thread 123145474068480 serviced 1 files
-Thread 123145472995328 serviced 2 files
-Thread 123145473531904 serviced 1 files
-Thread 123145474605056 serviced 1 files
-Total time: 2.
+Thread 140348502574848 serviced 5 files
+Total time: 26 seconds.
+
+Number for requester thread = 3
+Number for resolver thread = 1
+Thread 140632236066560 serviced 2 files
+Thread 140632227673856 serviced 1 files
+Thread 140632244459264 serviced 2 files
+Total time: 47 seconds.
+
+Number for requester thread = 3
+Number for resolver thread = 3
+Thread 140303379863296 serviced 1 files
+Thread 140303388256000 serviced 2 files
+Thread 140303371470592 serviced 2 files
+Total time: 25 seconds.
+
+Number for requester thread = 5
+Number for resolver thread = 5
+Thread 140593013380864 serviced 1 files
+Thread 140592988202752 serviced 1 files
+Thread 140592996595456 serviced 1 files
+Thread 140593004988160 serviced 1 files
+Thread 140592979810048 serviced 1 files
+Total time: 15 seconds.
+
+
+Number for requester thread = 8
+Number for resolver thread = 5
+Thread 140577512974080 serviced 0 files
+Thread 140577529759488 serviced 1 files
+Thread 140577538152192 serviced 0 files
+Thread 140577425319680 serviced 0 files
+Thread 140577546544896 serviced 1 files
+Thread 140577433712384 serviced 1 files
+Thread 140577554937600 serviced 1 files
+Thread 140577521366784 serviced 1 files
+Total time: 25 seconds.

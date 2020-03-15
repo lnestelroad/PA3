@@ -3,4 +3,4 @@ project(PA3)
 
 add_executable(multi-lookup ./multi-lookup.c)
 target_link_libraries(multi-lookup pthread)
-
+target_compile_options(multi-lookup PRIVATE -Werror -Wall -Wextra)

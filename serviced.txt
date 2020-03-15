@@ -3,5 +3,3 @@
 ../input/names3.txt
 ../input/names4.txt
 ../input/names5.txt
-
-Time of day: 

@@ -12,8 +12,7 @@ FILE* openFile(char* filePath, char* fileOption){
 }
 
 void closeFile(FILE* fp){
-    if (fclose(fp))
-        printf("Failed to close file\n");
+    if (fclose(fp)) printf("Failed to close file\n");
 }
 
 bool inFile(char* filePath, char* string){
@@ -98,14 +97,14 @@ char* dequeue(queue* shm_data){
 }
 
 ///////////////////////////////////////////// Thread Functions /////////////////////////////////////////////////////
-void* Requestor(void* shm_dataPointer){
+void* Requestor(){
     int shmid, i;
     int counter = 0;
     char buffer[128];
     char nextFile[256]; // these will be used as a temp space for the name files path and line contents
     FILE* serviced;
 
-    data * shm_details = (data*) shm_dataPointer;
+    /* data * shm_details = (data*) shm_dataPointer; */
     queue* shm_data;
 
     // printf("Hello from requestor thread\n");
@@ -160,16 +159,15 @@ void* Requestor(void* shm_dataPointer){
     return NULL; 
 }
 
-void* Resolver(void* shm_dataPointer){
-    int shmid, i;
+void* Resolver(){
+    int shmid;
     char IP[256];
     char buffer[128]; // these will be used as a temp space for the name files path and line contents
-    char filePath[256];
     bool flag = true;
 
     // printf("Hello from resolver thread\n");   
 
-    data * shm_details = (data*) shm_dataPointer;
+    /* data * shm_details = (data*) shm_dataPointer; */
     queue* shm_data;
 
     if ((shmid = shmget(5678, sizeof(queue), 0666)) < 0){
@@ -212,15 +210,15 @@ void* Resolver(void* shm_dataPointer){
 }
 ///////////////////////////////////////////// Main Function //////////////////////////////////////////////////
 int main(int argc, char *argv[]){
-    printf("Hello, World\n"); 
+    printf("Hello, World %d\n", argc); 
 
-    int totaltime, shmid, i, j;
+    int totaltime, shmid, i;
     int numRequestors = atoi(argv[1]);
     int numResolvers = atoi(argv[2]);
     struct timeval start_tv, finish_tv;
     struct timezone tz;
 
-    int td = gettimeofday(&start_tv, &tz);
+    gettimeofday(&start_tv, &tz);
 
     queue* shm_data;
     pthread_t* requestors = malloc(sizeof(pthread_t)*numRequestors);
@@ -229,10 +227,10 @@ int main(int argc, char *argv[]){
 
     FILE* results = openFile("../results.txt", "w");
     FILE* serviced = openFile("../serviced.txt", "w");
-    FILE* perform = openFile("../performance.txt", "w");
+    /* FILE* perform = openFile("../performance.txt", "w"); */
     closeFile(results);
     closeFile(serviced);
-    closeFile(perform);
+    /* closeFile(perform); */
 
     pthread_mutex_lock(&perform_lock);
         serviced = openFile("../performance.txt", "a");
@@ -300,14 +298,14 @@ int main(int argc, char *argv[]){
 
     shmctl(shmid,IPC_RMID,NULL); 
 
-    td = gettimeofday(&finish_tv, &tz); 
+    gettimeofday(&finish_tv, &tz); 
     totaltime = finish_tv.tv_sec - start_tv.tv_sec;
     // printf("Start time: %ld\nFinish time: %ld\n", start_tv.tv_sec, finish_tv.tv_sec);
     printf("The program took %d seconds to complete.\n", totaltime);
 
     pthread_mutex_lock(&perform_lock);
         serviced = openFile("../performance.txt", "a");
-        fprintf(serviced, "Total time: %d seconds.\n", totaltime);
+        fprintf(serviced, "Total time: %d seconds.\n\n", totaltime);
         closeFile(serviced);
     pthread_mutex_unlock(&perform_lock);
 

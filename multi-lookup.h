@@ -39,8 +39,8 @@ void enqueue(char* hostname, queue* shm_data);
 char* dequeue(queue* shm_data);
 
 // Requestor thread fuction
-void* Requestor(void* details);
-void* Resolver(void* details);
+void* Requestor();
+void* Resolver();
 
 // Shared Memory Functions
 pthread_mutex_t shm_lock, serviced_lock, results_lock, perform_lock;
