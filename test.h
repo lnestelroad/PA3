@@ -19,9 +19,6 @@ typedef struct queue{
     int semephore;
 
     char buffer[10][256];
-
-    // pthread_cond_t buffer_full;
-    // pthread_mutex_t shm_lock;
 } queue;
 
 // Helper functions
@@ -30,8 +27,6 @@ void closeFile(FILE* fd);
 bool inFile(char* filePath, char* string);
 
 // Queue funtions
-// bool isEmpty(queue* shm_data);
-// bool isFull(queue* shm_data);
 void enqueue(char* hostname, queue* shm_data);
 void dequeue(queue* shm_data, char** data);
 

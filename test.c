@@ -6,10 +6,9 @@
 FILE* openFile(char* filePath, char* fileOption){
     FILE *fp = fopen(filePath, fileOption);
     if (fp == NULL) {
-        perror("Failed: ");
+        perror("Failed to open file: ");
         return NULL;
     }
-    
     return fp;
 }
 
@@ -119,12 +118,10 @@ void displayQueue(queue* domain) {
 void* Requestor(){
     int shmid, i;
     int counter = 0;
-    char* buffer = NULL; //(char*)malloc(256 * sizeof(char)); 
+    char* buffer = NULL;
     size_t buff_len = 0;
     char nextFile[256]; // these will be used as a temp space for the name files path and line contents
     FILE* serviced;
-
-    /* data * shm_details = (data*) shm_dataPointer; */
     queue* shm_data;
 
     // printf("Hello from requestor thread\n");
@@ -209,7 +206,6 @@ void* Resolver(){
     while(true){
 
         pthread_mutex_lock(&shm_lock);
-        printf("Semephore: %d, Head: %d\n", shm_data->semephore, shm_data->head);
         while (shm_data->capacity == 0){
             if (shm_data->semephore == -1){
                 shmdt(shm_data);
@@ -224,8 +220,6 @@ void* Resolver(){
         
         dequeue(shm_data, &buffer);
         pthread_mutex_unlock(&shm_lock);
-
-        printf("%lu Data: %s\n", (unsigned long)self, buffer);
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
         dnslookup(buffer, IP, sizeof(IP));
@@ -246,10 +240,13 @@ void* Resolver(){
 
 int main(int argc, char *argv[]){
     printf("Hello, world!\n");
-    int shmid, i;
-    // char* data = (char*)malloc(256 * sizeof(char));
+    int totaltime, shmid, i;
     int numRequestors = atoi(argv[1]);
     int numResolvers = atoi(argv[2]);
+    struct timeval start_tv, finish_tv;
+    struct timezone tz;
+
+    gettimeofday(&start_tv, &tz);
 
     queue* domain;
     key_t key = 5678;
@@ -260,6 +257,13 @@ int main(int argc, char *argv[]){
     closeFile(results);
     closeFile(serviced);
     closeFile(perform);
+
+    pthread_mutex_lock(&perform_lock);
+        serviced = openFile("./performance.txt", "a");
+        fprintf(serviced, "Number for requester thread = %d\n", numRequestors);
+        fprintf(serviced, "Number for resolver thread = %d\n", numResolvers);
+        closeFile(serviced);
+    pthread_mutex_unlock(&perform_lock);
 
     pthread_t* requestors = malloc(sizeof(pthread_t)*numRequestors);
     pthread_t* resolvers = malloc(sizeof(pthread_t)*numResolvers);
@@ -310,19 +314,29 @@ int main(int argc, char *argv[]){
         pthread_join(resolvers[i], 0);
     }
 
+    gettimeofday(&finish_tv, &tz); 
+    totaltime = finish_tv.tv_sec - start_tv.tv_sec;
+    // printf("Start time: %ld\nFinish time: %ld\n", start_tv.tv_sec, finish_tv.tv_sec);
+    printf("The program took %d seconds to complete.\n", totaltime);
+
+    pthread_mutex_lock(&perform_lock);
+        serviced = openFile("./performance.txt", "a");
+        fprintf(serviced, "Total time: %d seconds.\n\n", totaltime);
+        closeFile(serviced);
+    pthread_mutex_unlock(&perform_lock);
+
     free(requestors);
     free(resolvers);
 
     pthread_mutex_destroy(&shm_lock);
-
     pthread_cond_destroy(&buffer_full);
     pthread_cond_destroy(&buffer_empty);
     pthread_mutex_destroy(&serviced_lock);
     pthread_mutex_destroy(&results_lock);
     pthread_mutex_destroy(&perform_lock);
 
-    // free(data);
     shmctl(shmid,IPC_RMID,NULL); 
+
     exit(0);
 }
 
