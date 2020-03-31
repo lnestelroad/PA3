@@ -43,3 +43,6 @@ Thread 140577433712384 serviced 1 files
 Thread 140577554937600 serviced 1 files
 Thread 140577521366784 serviced 1 files
 Total time: 25 seconds.
+Number for requester thread = 1
+Number for resolver thread = 1
+Thread 123145329426432 serviced 5 files

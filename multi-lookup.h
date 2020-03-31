@@ -19,8 +19,12 @@ typedef struct queue {
     int head;
     int tail;
     int capacity;
-    char domainBuffer[QUEUE_SIZE][256];
+
+    char buffer[QUEUE_SIZE][256];
     int semephore;
+
+    pthread_cond_t buffer_full;
+    pthread_mutex_t shm_lock;
 }queue;
 
 typedef struct data {
@@ -36,15 +40,15 @@ bool inFile(char* filePath, char* string);
 // bool isEmpty(queue* shm_data);
 // bool isFull(queue* shm_data);
 void enqueue(char* hostname, queue* shm_data);
-char* dequeue(queue* shm_data);
+void dequeue(queue* shm_data, char** data);
 
 // Requestor thread fuction
 void* Requestor();
 void* Resolver();
 
 // Shared Memory Functions
-pthread_mutex_t shm_lock, serviced_lock, results_lock, perform_lock;
-pthread_cond_t buffer_full;
+pthread_mutex_t serviced_lock, results_lock, perform_lock;
+
 
 
 
