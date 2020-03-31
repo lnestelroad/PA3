@@ -46,3 +46,4 @@ Total time: 25 seconds.
 Number for requester thread = 1
 Number for resolver thread = 1
 Thread 123145329426432 serviced 5 files
+Thread 123145509740544 serviced 5 files
