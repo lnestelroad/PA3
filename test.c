@@ -119,7 +119,8 @@ void displayQueue(queue* domain) {
 void* Requestor(){
     int shmid, i;
     int counter = 0;
-    char* buffer = (char*)malloc(256 * sizeof(char)); 
+    char* buffer = NULL; //(char*)malloc(256 * sizeof(char)); 
+    size_t buff_len = 0;
     char nextFile[256]; // these will be used as a temp space for the name files path and line contents
     FILE* serviced;
 
@@ -140,21 +141,6 @@ void* Requestor(){
 
     pthread_t self = pthread_self();
 
-    // for (i = 0; i < 6; i++){
-    //     char data[80];
-    //     sprintf(data, "%lu: %d", (unsigned long)self, i);
-    //     printf("%s\n", data);
-
-    //     pthread_mutex_lock(&shm_lock);
-    //     while(shm_data->capacity == shm_data->size){
-    //         pthread_cond_wait(&buffer_full, &shm_lock);
-    //         // pthread_cond_signal(&buffer_empty);
-    //     }
-    //     enqueue(data, shm_data);
-    //     pthread_mutex_unlock(&shm_lock);
-
-        
-    // }
     for (i = 1; i < 6; i++){
         sprintf(nextFile, "./input/names%d.txt", i);
         if(!inFile("./serviced.txt", nextFile)){
@@ -165,15 +151,14 @@ void* Requestor(){
             pthread_mutex_unlock(&serviced_lock);
 
             FILE* nameFileP = openFile(nextFile, "r");
-            while(NULL != fgets(buffer, sizeof(buffer), nameFileP)){
+            while(getline(&buffer, &buff_len, nameFileP) != -1){
                 buffer[strcspn(buffer, "\n")] = 0;
 
                 pthread_mutex_lock(&shm_lock);
-                while(shm_data->capacity == shm_data->size){
-                    pthread_cond_wait(&buffer_full, &shm_lock);
-                    // pthread_cond_signal(&buffer_empty);
-                }
-                enqueue(buffer, shm_data);
+                    while(shm_data->capacity == shm_data->size){
+                        pthread_cond_wait(&buffer_full, &shm_lock);
+                    }
+                    enqueue(buffer, shm_data);
                 pthread_mutex_unlock(&shm_lock);
             }
             closeFile(nameFileP);
