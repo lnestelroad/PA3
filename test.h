@@ -21,6 +21,13 @@ typedef struct queue{
     char buffer[10][256];
 } queue;
 
+typedef struct threadInfo{
+    int filesNum;
+    char* resultsFile;
+    char* serviceFile;
+    char* fileNames[10]; //a max of 10 files can be passed to the program.
+}data;
+
 // Helper functions
 FILE* openFile(char* filepath, char* fileOption);
 void closeFile(FILE* fd);
@@ -31,8 +38,8 @@ void enqueue(char* hostname, queue* shm_data);
 void dequeue(queue* shm_data, char** data);
 
 // Requestor thread fuction
-void* Requestor();
-void* Resolver();
+void* Requestor(void* threadData);
+void* Resolver(void* threadData);
 
 // Shared Memory Functions
 pthread_mutex_t shm_lock, serviced_lock, results_lock, perform_lock;

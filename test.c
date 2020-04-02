@@ -5,9 +5,10 @@
 
 FILE* openFile(char* filePath, char* fileOption){
     FILE *fp = fopen(filePath, fileOption);
+    // printf("FILEPATH: %s", filePath);
     if (fp == NULL) {
-        perror("Failed to open file: ");
-        return NULL;
+        perror(filePath);
+        exit(1);
     }
     return fp;
 }
@@ -115,7 +116,7 @@ void displayQueue(queue* domain) {
     pthread_mutex_unlock(&shm_lock);
 } 
 
-void* Requestor(){
+void* Requestor(void* threadData){
     int shmid, i;
     int counter = 0;
     char* buffer = NULL;
@@ -123,8 +124,9 @@ void* Requestor(){
     char nextFile[256]; // these will be used as a temp space for the name files path and line contents
     FILE* serviced;
     queue* shm_data;
-
-    // printf("Hello from requestor thread\n");
+    data * thread_detail = (data*) threadData;
+    char* serviceFile = thread_detail->serviceFile;
+    // printf("Hello from requestor thread. %s\n", thread_detail->serviceFile);
 
     if ((shmid = shmget(5678, sizeof(queue), 0666)) < 0){
         perror("Thread shmget failed: ");
@@ -138,11 +140,11 @@ void* Requestor(){
 
     pthread_t self = pthread_self();
 
-    for (i = 1; i < 6; i++){
-        sprintf(nextFile, "./input/names%d.txt", i);
-        if(!inFile("./serviced.txt", nextFile)){
+    for (i = 0; i < thread_detail->filesNum; i++){
+        sprintf(nextFile, "%s", thread_detail->fileNames[i]);
+        if(!inFile(serviceFile, nextFile)){
             pthread_mutex_lock(&serviced_lock);
-                serviced = openFile("./serviced.txt", "a");
+                serviced = openFile(serviceFile, "a");
                 fprintf(serviced, "%s\n", nextFile);
                 closeFile(serviced);
             pthread_mutex_unlock(&serviced_lock);
@@ -180,16 +182,16 @@ void* Requestor(){
     return NULL; 
 }
 
-void* Resolver(){
+void* Resolver(void* threadData){
     int shmid;
     char IP[256];
     char* buffer = (char*)malloc(256 * sizeof(char)); // these will be used as a temp space for the name files path and line contents
-    bool flag = true;
 
     // printf("Hello from resolver thread\n");   
 
-    /* data * shm_details = (data*) shm_dataPointer; */
+    data * thread_detail = (data*) threadData;
     queue* shm_data;
+    char* resultsFile = thread_detail->resultsFile;
 
     if ((shmid = shmget(5678, sizeof(queue), 0666)) < 0){
         perror("Resolver shmget failed: ");
@@ -227,7 +229,7 @@ void* Resolver(){
             strcpy(IP, "");
 
         pthread_mutex_lock(&results_lock);
-            FILE* results = openFile("./results.txt", "a");
+            FILE* results = openFile(resultsFile, "a");
                 fprintf(results, "%s,%s\n", buffer, IP);
             closeFile(results);
         pthread_mutex_unlock(&results_lock);
@@ -240,19 +242,35 @@ void* Resolver(){
 
 int main(int argc, char *argv[]){
     printf("Hello, world!\n");
+
+    if (argc < 6){
+        printf("Error: not enough file inputs\n This program reqires a requestor thread count, a resolver thread count, a requsetor log file, a reslover log file, and an input file.");
+        exit(1);
+    }
     int totaltime, shmid, i;
     int numRequestors = atoi(argv[1]);
     int numResolvers = atoi(argv[2]);
+    char* servicedFileName = argv[3];
+    char* resultsFileName = argv[4];
     struct timeval start_tv, finish_tv;
     struct timezone tz;
 
     gettimeofday(&start_tv, &tz);
 
     queue* domain;
+    data threadData;
     key_t key = 5678;
 
-    FILE* results = openFile("./results.txt", "w");
-    FILE* serviced = openFile("./serviced.txt", "w");
+    threadData.filesNum = argc - 5;
+    threadData.resultsFile = resultsFileName;
+    threadData.serviceFile = servicedFileName;
+
+    for (i = 0; i <= argc - 5; i++){
+        threadData.fileNames[i] = argv[i+5];
+    }
+
+    FILE* results = openFile(resultsFileName, "w");
+    FILE* serviced = openFile(servicedFileName, "w");
     FILE* perform = openFile("./performance.txt", "w");
     closeFile(results);
     closeFile(serviced);
@@ -293,14 +311,14 @@ int main(int argc, char *argv[]){
 
 
     for (i = 0; i < numRequestors; i++){
-        if (pthread_create(&requestors[i], NULL, Requestor, NULL)) {
+        if (pthread_create(&requestors[i], NULL, Requestor, (void*)&threadData)) {
             perror("error creating requestor thread");
             exit(1);
         } 
     }
 
     for (i = 0; i < numResolvers; i++){
-        if (pthread_create(&resolvers[i], NULL, Resolver, NULL)) {
+        if (pthread_create(&resolvers[i], NULL, Resolver, (void*)&threadData)) {
             perror("error creating requestor thread");
             exit(1);
         } 
